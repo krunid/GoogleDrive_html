@@ -119,6 +119,17 @@
       width: 60px;
       height: auto;
       border-radius: 8px;
+      cursor: pointer;
+    }
+
+    /* รูปใหญ่ */
+    #largeImage {
+      max-width: 90vw;
+      max-height: 80vh;
+      display: block;
+      margin: 40px auto;
+      border-radius: 12px;
+      transition: all 0.3s ease;
     }
   </style>
 </head>
@@ -134,7 +145,7 @@
   </form>
 </div>
 
-<!-- Modal -->
+<!-- Modal แสดงข้อมูล -->
 <div id="dataModal" class="modal">
   <div class="modal-content">
     <span class="close">&times;</span>
@@ -160,6 +171,16 @@
   </div>
 </div>
 
+<!-- Modal แสดงรูปใหญ่ -->
+<div id="imageViewer" class="modal">
+  <span class="close" id="closeViewer">&times;</span>
+  <img id="largeImage" src="">
+  <div style="text-align:center;">
+    <button id="prevImage" class="btn-cancel">← ก่อนหน้า</button>
+    <button id="nextImage" class="btn-cancel">ถัดไป →</button>
+  </div>
+</div>
+
 <!-- Loading -->
 <div class="loading-overlay" id="loadingOverlay">
   <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="loading">
@@ -169,7 +190,7 @@
 <!-- เสียงติ๊ง -->
 <audio id="dingSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c57fa19963.mp3" preload="auto"></audio>
 
-<!-- ต่อในตอนที่ 2... -->
+<!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script>
@@ -181,7 +202,6 @@
   let fileCache = [];
   let lastFolderId = null;
 
-  // 🎯 แปลง MIME Type เป็นกลุ่มง่ายๆ
   function getFileCategory(type, name) {
     if (type.includes("image") || /\.(jpg|jpeg|png|gif)$/i.test(name)) return "image";
     if (type.includes("pdf")) return "pdf";
@@ -189,7 +209,6 @@
     return "other";
   }
 
-  // 🎯 ดึงข้อมูลจาก Apps Script
   document.getElementById("driveForm").addEventListener("submit", function(e) {
     e.preventDefault();
 
@@ -202,7 +221,6 @@
       return;
     }
 
-    // หากเปลี่ยน folderId ให้โหลดใหม่
     if (folderId !== lastFolderId) {
       fileCache = [];
       lastFolderId = folderId;
@@ -242,7 +260,6 @@
       });
   });
 
-  // 🎯 ฟังก์ชันสร้างตาราง
   function renderTable(data) {
     $('#fileTable').DataTable().clear().destroy();
     const tbody = document.querySelector("#fileTable tbody");
@@ -254,7 +271,9 @@
       .filter(file => filterValue === "all" || file.category === filterValue)
       .forEach(file => {
         const isImage = file.category === "image";
-        const preview = isImage ? `<img class="preview" src="${file.url.replace('/view', '/preview')}" />` : "-";
+        const preview = isImage
+          ? `<img class="preview" src="${file.url.replace('/view', '/preview')}" onclick="openImageViewer('${file.url}')" />`
+          : "-";
         const row = `
           <tr>
             <td>${file.name}</td>
@@ -269,16 +288,13 @@
     modal.style.display = "block";
   }
 
-  // 🎯 Filter dropdown
   document.getElementById("filterType").addEventListener("change", () => {
     renderTable(fileCache);
   });
 
-  // 🎯 ปิด Modal
   spanClose.onclick = () => modal.style.display = "none";
   window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
 
-  // 🎯 Export to CSV
   document.getElementById("exportBtn").addEventListener("click", () => {
     const csv = ["ชื่อไฟล์,ประเภท,ลิงก์"];
     fileCache.forEach(file => {
@@ -293,7 +309,70 @@
     link.click();
     document.body.removeChild(link);
   });
+
+  // Viewer Modal
+  const viewerModal = document.getElementById("imageViewer");
+  const largeImage = document.getElementById("largeImage");
+  const closeViewer = document.getElementById("closeViewer");
+  const prevBtn = document.getElementById("prevImage");
+  const nextBtn = document.getElementById("nextImage");
+
+  let imageList = [];
+  let currentImageIndex = 0;
+
+  function openImageViewer(imageUrl) {
+    imageList = fileCache.filter(file => file.category === "image");
+    currentImageIndex = imageList.findIndex(f => f.url === imageUrl);
+    if (currentImageIndex === -1) return;
+    showLargeImage();
+    viewerModal.style.display = "block";
+  }
+
+  function showLargeImage() {
+    const file = imageList[currentImageIndex];
+    largeImage.src = file.url.replace("/view", "/preview");
+  }
+
+  prevBtn.onclick = () => {
+    if (currentImageIndex > 0) {
+      currentImageIndex--;
+      showLargeImage();
+    }
+  };
+
+  nextBtn.onclick = () => {
+    if (currentImageIndex < imageList.length - 1) {
+      currentImageIndex++;
+      showLargeImage();
+    }
+  };
+
+  closeViewer.onclick = () => viewerModal.style.display = "none";
+  window.onclick = e => { if (e.target === viewerModal) viewerModal.style.display = "none"; };
+
+  document.addEventListener("keydown", (e) => {
+    if (viewerModal.style.display !== "block") return;
+    if (e.key === "ArrowLeft") prevBtn.click();
+    if (e.key === "ArrowRight") nextBtn.click();
+  });
+
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  largeImage.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  });
+
+  largeImage.addEventListener("touchend", (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  });
+
+  function handleSwipe() {
+    const diff = touchStartX - touchEndX;
+    if (diff > 50) nextBtn.click();
+    else if (diff < -50) prevBtn.click();
+  }
 </script>
 </body>
 </html>
-

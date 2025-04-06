@@ -66,6 +66,8 @@
       width: 100px;
       margin-bottom: 10px;
     }
+
+    /* Modal */
     .modal {
       display: none;
       position: fixed;
@@ -89,6 +91,37 @@
       font-size: 24px;
       font-weight: bold;
       cursor: pointer;
+    }
+
+    /* Loading */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: linear-gradient(-45deg, #ffdee9, #b5fffc, #c3ffd2, #ffe2a9);
+      background-size: 400% 400%;
+      animation: gradientBG 5s ease infinite;
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      font-size: 18px;
+      color: #444;
+    }
+    .loading-overlay img {
+      width: 100px;
+      animation: spin 2s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
   </style>
 </head>
@@ -124,12 +157,19 @@
             <th>ลิงก์</th>
           </tr>
         </thead>
-        <tbody>
-          <!-- เพิ่มข้อมูลด้วย JS -->
-        </tbody>
+        <tbody></tbody>
       </table>
     </div>
   </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="loading">
+    กำลังโหลดข้อมูล กรุณารอสักครู่...
+  </div>
+
+  <!-- เสียงติ๊ง -->
+  <audio id="dingSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c57fa19963.mp3" preload="auto"></audio>
 
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -137,6 +177,8 @@
   <script>
     const modal = document.getElementById("dataModal");
     const spanClose = document.querySelector(".close");
+    const loading = document.getElementById("loadingOverlay");
+    const dingSound = document.getElementById("dingSound");
 
     let fileCache = [];
     let dataLoaded = false;
@@ -158,12 +200,15 @@
         return;
       }
 
-      // 🔁 เปลี่ยน URL นี้เป็น Web App ของคุณ (ลงท้ายด้วย /exec)
+      loading.style.display = "flex"; // แสดงโหลด
+
       const fullUrl = `https://script.google.com/macros/s/AKfycbyHSJTK8V8iTSwI7Dkf7GL25RnCA0VOduuZxACbNTi9olWpasiKYCwDkRHYEuylP86mvA/exec?folderId=${folderId}`;
 
       fetch(fullUrl)
         .then((res) => res.json())
         .then((data) => {
+          loading.style.display = "none"; // ซ่อนโหลด
+          dingSound.play(); // เสียงติ๊ง
           if (data.error) {
             alert(data.error);
             return;
@@ -173,6 +218,7 @@
           renderTable(fileCache);
         })
         .catch((err) => {
+          loading.style.display = "none";
           alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
           console.error(err);
         });
@@ -182,7 +228,6 @@
       $('#fileTable').DataTable().clear().destroy();
       const tbody = document.querySelector("#fileTable tbody");
       tbody.innerHTML = "";
-
       data.forEach(file => {
         const row = `
           <tr>
@@ -192,7 +237,6 @@
           </tr>`;
         tbody.insertAdjacentHTML("beforeend", row);
       });
-
       modal.style.display = "block";
       $('#fileTable').DataTable();
     }
@@ -200,6 +244,5 @@
     spanClose.onclick = () => modal.style.display = "none";
     window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
   </script>
-
 </body>
 </html>

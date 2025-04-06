@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>ระบบดึงไฟล์จาก Google Drive</title>
 
-  <!-- ฟอนต์และ DataTables -->
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+  <!-- Fonts & DataTables -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
 
   <style>
     body {
@@ -95,23 +95,23 @@
 <body>
 
   <div class="container">
-    <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji">
+    <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji" />
     <div class="header">ระบบดึงไฟล์จาก Google Drive</div>
     
-    <form>
-      <label for="driveUrl">กรุณากรอก URL ของโฟลเดอร์ Google Drive:</label><br>
-      <input type="text" id="driveUrl" name="driveUrl" placeholder="https://drive.google.com/drive/folders/..."><br>
+    <form id="driveForm">
+      <label for="driveUrl">กรุณากรอก URL ของโฟลเดอร์ Google Drive:</label><br />
+      <input type="text" id="driveUrl" name="driveUrl" placeholder="https://drive.google.com/drive/folders/..." /><br />
       <button type="submit" class="btn-submit">ดึงข้อมูล</button>
       <button type="reset" class="btn-cancel">ยกเลิกข้อมูล</button>
     </form>
 
     <div class="footer">
-      พัฒนาโดย ครูนิด ศิษย์หลวงพ่อเสือ<br>
+      พัฒนาโดย ครูนิด ศิษย์หลวงพ่อเสือ<br />
       ครูนิดสตูดิโอ <a href="tel:0892231515">089-223-1515</a>
     </div>
   </div>
 
-  <!-- Modal Popup -->
+  <!-- Modal -->
   <div id="dataModal" class="modal">
     <div class="modal-content">
       <span class="close">&times;</span>
@@ -125,7 +125,7 @@
           </tr>
         </thead>
         <tbody>
-          <!-- JS จะใส่ข้อมูล -->
+          <!-- เพิ่มข้อมูลด้วย JS -->
         </tbody>
       </table>
     </div>
@@ -141,7 +141,7 @@
     let fileCache = [];
     let dataLoaded = false;
 
-    document.querySelector("form").addEventListener("submit", function(e) {
+    document.getElementById("driveForm").addEventListener("submit", function(e) {
       e.preventDefault();
 
       const folderUrl = document.getElementById("driveUrl").value.trim();
@@ -153,27 +153,25 @@
         return;
       }
 
-      // ถ้ามีข้อมูลแล้ว ใช้จาก cache
       if (dataLoaded) {
         renderTable(fileCache);
         return;
       }
 
-      const scriptUrl = "https://script.google.com/macros/s/AKfycbREPLACE_THIS/exec"; // 🔁 เปลี่ยนตรงนี้
+      const scriptUrl = "https://script.google.com/macros/s/AKfycbREPLACE_THIS/exec"; // 🛠 เปลี่ยนเป็นของคุณ
 
       fetch(`${scriptUrl}?folderId=${folderId}`)
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data.error) {
             alert(data.error);
             return;
           }
-
           fileCache = data;
           dataLoaded = true;
           renderTable(fileCache);
         })
-        .catch(err => {
+        .catch((err) => {
           alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
           console.error(err);
         });
@@ -198,7 +196,7 @@
       $('#fileTable').DataTable();
     }
 
-    // ปิด popup
+    // ปิด modal
     spanClose.onclick = () => modal.style.display = "none";
     window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
   </script>

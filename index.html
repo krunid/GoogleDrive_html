@@ -1,86 +1,58 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ระบบดึงไฟล์จาก Google Drive</title>
-  <style>
-    body {
-      font-family: 'Sarabun', sans-serif;
-      background: #e8ecf2;
-      text-align: center;
-      padding: 50px;
-    }
-    .container {
-      background: #fff;
-      padding: 30px;
-      border-radius: 15px;
-      max-width: 500px;
-      margin: auto;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .header {
-      background: #d84433;
-      color: white;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    input[type="text"] {
-      width: 90%;
-      padding: 12px;
-      margin: 15px 0;
-      border: 2px solid #ccc;
-      border-radius: 10px;
-      font-size: 16px;
-    }
-    button {
-      padding: 12px 20px;
-      margin: 5px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .btn-submit {
-      background-color: #d84433;
-      color: white;
-    }
-    .btn-cancel {
-      background-color: #5a6760;
-      color: white;
-    }
-    .footer {
-      margin-top: 30px;
-      font-size: 14px;
-      color: #555;
-    }
-    .emoji {
-      width: 100px;
-      margin-bottom: 10px;
-    }
-  </style>
-</head>
-<body>
-
-  <div class="container">
-    <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji">
-    <div class="header">ระบบดัชนีไฟล์ระบบจาก Google Drive</div>
-    
-    <form>
-      <label for="driveUrl">กรุณากรอก URL ของโฟลเดอร์ Google Drive:</label><br>
-      <input type="text" id="driveUrl" name="driveUrl" placeholder="https://drive.google.com/drive/folders/..."><br>
-      <button type="submit" class="btn-submit">ดึงข้อมูล</button>
-      <button type="reset" class="btn-cancel">ยกเลิกข้อมูล</button>
-    </form>
-
-    <div class="footer">
-      พัฒนาโดย ครูรากหญ้า<br>
-      รากหญ้าสตูดิโอ 098-408-2913
-    </div>
+<!-- Modal Popup -->
+<div id="dataModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>รายการไฟล์ที่โหลดได้</h3>
+    <table id="fileTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th>ชื่อไฟล์</th>
+          <th>ประเภท</th>
+          <th>ลิงก์</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- จะเพิ่มด้วย JS -->
+      </tbody>
+    </table>
   </div>
+</div>
 
-</body>
-</html>
+<script>
+  const dummyData = [
+    { name: "แบบเรียน.pdf", type: "PDF", link: "https://drive.google.com/file/d/123456/view" },
+    { name: "ภาพกิจกรรม.jpg", type: "รูปภาพ", link: "https://drive.google.com/file/d/234567/view" },
+    { name: "รายงาน.docx", type: "เอกสาร", link: "https://drive.google.com/file/d/345678/view" },
+  ];
+
+  const modal = document.getElementById("dataModal");
+  const spanClose = document.querySelector(".close");
+
+  document.querySelector("form").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    // ล้างข้อมูลเก่า
+    $('#fileTable').DataTable().clear().destroy();
+    const tbody = document.querySelector("#fileTable tbody");
+    tbody.innerHTML = "";
+
+    // แสดงข้อมูล (เปลี่ยนจาก dummyData เป็นข้อมูลจริงในอนาคต)
+    dummyData.forEach(file => {
+      const row = `
+        <tr>
+          <td>${file.name}</td>
+          <td>${file.type}</td>
+          <td><a href="${file.link}" target="_blank">เปิดไฟล์</a></td>
+        </tr>`;
+      tbody.insertAdjacentHTML("beforeend", row);
+    });
+
+    // เปิด modal และสร้าง DataTable
+    modal.style.display = "block";
+    $('#fileTable').DataTable();
+  });
+
+  // ปิด popup
+  spanClose.onclick = () => modal.style.display = "none";
+  window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
+</script>

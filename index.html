@@ -12,7 +12,7 @@
       text-align: center;
     }
 
-    input[type="text"], select, button {
+    input, select, button {
       padding: 10px;
       width: 90%;
       max-width: 500px;
@@ -21,6 +21,11 @@
       border-radius: 8px;
       border: 1px solid #ccc;
       display: block;
+    }
+
+    .admin-panel {
+      display: none;
+      margin-top: 10px;
     }
 
     .stats {
@@ -80,16 +85,30 @@
 </head>
 <body>
 
-  <h2>ระบบแสดงไฟล์จาก Google Drive (ไม่ใช้ API)</h2>
+  <h2>ระบบแสดงไฟล์จาก Google Drive</h2>
+
+  <input type="text" id="folderInput" placeholder="กรอก Folder ID (เช่น 1a2B3c4D...)">
+  <button onclick="loadFiles()">โหลดไฟล์</button>
 
   <input type="text" id="searchInput" placeholder="ค้นหาชื่อไฟล์...">
   <select id="sortOption">
     <option value="time">เรียงตามวันที่ (ใหม่-เก่า)</option>
     <option value="name">เรียงตามชื่อ (A-Z)</option>
   </select>
-  <button onclick="downloadAll()">ดาวน์โหลดทั้งหมด</button>
 
-  <div class="stats" id="fileStats">กำลังโหลด...</div>
+  <button onclick="downloadAll()">ดาวน์โหลดทั้งหมด</button>
+  <a id="zipLink" href="#" target="_blank">
+    <button style="background-color: green; color: white;">ดาวน์โหลด ZIP (ผ่านหน้า Google Drive)</button>
+  </a>
+
+  <div class="stats" id="fileStats">ยังไม่มีข้อมูล</div>
+
+  <input type="password" id="adminPassword" placeholder="รหัสแอดมิน">
+  <button onclick="checkAdmin()">เข้าสู่ระบบแอดมิน</button>
+
+  <div class="admin-panel" id="adminPanel">
+    <p>✅ เข้าสู่ระบบแอดมินแล้ว (ฟีเจอร์ในอนาคต: อัปโหลด / ลบ / แก้ไข)</p>
+  </div>
 
   <div class="file-section" id="section-jpg">
     <h3>รูปภาพ (JPG)</h3>
@@ -112,10 +131,17 @@
   </div>
 
   <script>
-    const folderId = 'YOUR_FOLDER_ID_HERE'; // <<< ใส่ Folder ID ของคุณ
     let allFiles = [];
-
     const allowedExtensions = ['.jpg', '.pdf', '.docx'];
+
+    // โหลดจาก localStorage ทันที
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedId = localStorage.getItem('savedFolderId');
+      if (savedId) {
+        document.getElementById('folderInput').value = savedId;
+        loadFiles();
+      }
+    });
 
     function hasAllowedExtension(name) {
       return allowedExtensions.some(ext => name.toLowerCase().endsWith(ext));
@@ -148,7 +174,6 @@
         pdf: document.getElementById('fileList-pdf'),
         docx: document.getElementById('fileList-docx')
       };
-
       Object.values(sections).forEach(sec => sec.innerHTML = '');
 
       document.getElementById("fileStats").textContent = `พบทั้งหมด ${files.length} ไฟล์`;
@@ -160,13 +185,11 @@
 
         const card = document.createElement('div');
         card.className = 'file-card';
-
         card.innerHTML = `
           ${getPreviewHTML(file)}
           <div>${file.name}</div>
           <a href="https://drive.google.com/uc?id=${file.id}&export=download" target="_blank">ดาวน์โหลด</a>
         `;
-
         container.appendChild(card);
       });
     }
@@ -189,29 +212,52 @@
     }
 
     function downloadAll() {
-      const links = allFiles.map(f => `https://drive.google.com/uc?id=${f.id}&export=download`);
-      links.forEach(url => window.open(url, '_blank'));
+      allFiles.forEach(f => {
+        const url = `https://drive.google.com/uc?id=${f.id}&export=download`;
+        window.open(url, '_blank');
+      });
     }
 
-    // โหลดข้อมูล
-    fetch(`https://gdrivejsonapi.iamkate.com/folder/${folderId}`)
-      .then(response => response.json())
-      .then(data => {
-        allFiles = data.files
-          .filter(file => hasAllowedExtension(file.name))
-          .map(file => ({
-            ...file,
-            modifiedTime: file.modifiedTime || file.modified || new Date()
-          }));
+    function loadFiles() {
+      const folderId = document.getElementById('folderInput').value.trim();
+      if (!folderId) {
+        alert("กรุณากรอก Folder ID");
+        return;
+      }
 
-        filterAndSortFiles();
-      })
-      .catch(error => {
-        console.error('เกิดข้อผิดพลาด:', error);
-        document.getElementById('fileStats').textContent = 'ไม่สามารถโหลดไฟล์ได้';
-      });
+      localStorage.setItem('savedFolderId', folderId);
+      document.getElementById('fileStats').textContent = "กำลังโหลดข้อมูล...";
+      document.getElementById('zipLink').href = `https://drive.google.com/drive/folders/${folderId}`;
 
-    // Event ฟัง input
+      fetch(`https://gdrivejsonapi.iamkate.com/folder/${folderId}`)
+        .then(response => response.json())
+        .then(data => {
+          allFiles = data.files
+            .filter(file => hasAllowedExtension(file.name))
+            .map(file => ({
+              ...file,
+              modifiedTime: file.modifiedTime || file.modified || new Date()
+            }));
+
+          filterAndSortFiles();
+        })
+        .catch(error => {
+          console.error('เกิดข้อผิดพลาด:', error);
+          document.getElementById('fileStats').textContent = 'ไม่สามารถโหลดไฟล์ได้';
+        });
+    }
+
+    function checkAdmin() {
+      const pass = document.getElementById('adminPassword').value;
+      if (pass === "123456") {
+        alert("เข้าสู่ระบบแอดมินแล้ว");
+        document.getElementById("adminPanel").style.display = "block";
+      } else {
+        alert("รหัสผ่านไม่ถูกต้อง");
+      }
+    }
+
+    // Event
     document.getElementById('searchInput').addEventListener('input', filterAndSortFiles);
     document.getElementById('sortOption').addEventListener('change', filterAndSortFiles);
   </script>

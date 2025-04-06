@@ -3,376 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ระบบดึงไฟล์จาก Google Drive</title>
-
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
-
+  <title>ดูรูปจาก Google Drive</title>
   <style>
-    body {
-      font-family: 'Sarabun', sans-serif;
-      background: #e8ecf2;
-      text-align: center;
-      padding: 50px;
-    }
-    .container {
-      background: #fff;
-      padding: 30px;
-      border-radius: 15px;
-      max-width: 600px;
-      margin: auto;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    }
-    .header {
-      background: #d84433;
-      color: white;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    input[type="text"], select {
-      width: 90%;
-      padding: 12px;
-      margin: 15px 0;
-      border: 2px solid #ccc;
-      border-radius: 10px;
-      font-size: 16px;
-    }
-    button {
-      padding: 10px 18px;
-      margin: 5px;
-      font-size: 16px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .btn-submit { background-color: #d84433; color: white; }
-    .btn-cancel { background-color: #5a6760; color: white; }
-    .btn-export { background-color: #2b84d8; color: white; }
-
-    .footer {
-      margin-top: 30px;
-      font-size: 14px;
-      color: #555;
-    }
-    .emoji { width: 100px; margin-bottom: 10px; }
-
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      overflow: auto;
-      background-color: rgba(0,0,0,0.5);
-    }
-    .modal-content {
-      background-color: #fff;
-      margin: 5% auto;
-      padding: 20px;
+    body { font-family: sans-serif; background: #f8f9fa; padding: 30px; text-align: center; }
+    input, button { padding: 10px; font-size: 16px; border-radius: 8px; margin: 5px; }
+    img.preview {
+      width: 150px;
       border-radius: 12px;
-      width: 95%;
-      max-width: 1000px;
-    }
-    .close {
-      color: #aaa;
-      float: right;
-      font-size: 24px;
-      font-weight: bold;
+      margin: 10px;
       cursor: pointer;
+      transition: transform 0.2s;
     }
-
-    /* Loading */
-    .loading-overlay {
+    img.preview:hover {
+      transform: scale(1.05);
+    }
+    #viewer {
       position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: linear-gradient(-45deg, #ffdee9, #b5fffc, #c3ffd2, #ffe2a9);
-      background-size: 400% 400%;
-      animation: gradientBG 5s ease infinite;
-      z-index: 1000;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
       display: none;
       justify-content: center;
       align-items: center;
       flex-direction: column;
-      font-size: 18px;
-      color: #444;
     }
-    .loading-overlay img {
-      width: 100px;
-      animation: spin 2s linear infinite;
-      margin-bottom: 15px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    @keyframes gradientBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    td img.preview {
-      width: 60px;
-      height: auto;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    /* รูปใหญ่ */
-    #largeImage {
+    #viewer img {
       max-width: 90vw;
       max-height: 80vh;
-      display: block;
-      margin: 40px auto;
       border-radius: 12px;
-      transition: all 0.3s ease;
+    }
+    #viewer button {
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji" />
-  <div class="header">ระบบดึงไฟล์จาก Google Drive</div>
-  
-  <form id="driveForm">
-    <input type="text" id="driveUrl" placeholder="วางลิงก์โฟลเดอร์ Google Drive">
-    <button type="submit" class="btn-submit">ดึงข้อมูล</button>
-    <button type="reset" class="btn-cancel">ยกเลิก</button>
-  </form>
+
+<h2>ดูรูปจาก Google Drive (แบบ thumbnail)</h2>
+<input type="text" id="folderUrl" placeholder="วางลิงก์โฟลเดอร์ Google Drive">
+<button onclick="fetchFiles()">ดึงรูป</button>
+
+<div id="gallery"></div>
+
+<!-- Modal Viewer -->
+<div id="viewer">
+  <img id="largeImg" src="">
+  <button onclick="viewer.style.display='none'">ปิด</button>
 </div>
 
-<!-- Modal แสดงข้อมูล -->
-<div id="dataModal" class="modal">
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <h3>รายการไฟล์</h3>
-    <select id="filterType">
-      <option value="all">ทั้งหมด</option>
-      <option value="image">รูปภาพ</option>
-      <option value="pdf">PDF</option>
-      <option value="doc">เอกสาร</option>
-    </select>
-    <button id="exportBtn" class="btn-export">Export to Excel</button>
-    <table id="fileTable" class="display" style="width:100%">
-      <thead>
-        <tr>
-          <th>ชื่อไฟล์</th>
-          <th>ประเภท</th>
-          <th>แสดง</th>
-          <th>ลิงก์</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Modal แสดงรูปใหญ่ -->
-<div id="imageViewer" class="modal">
-  <span class="close" id="closeViewer">&times;</span>
-  <img id="largeImage" src="">
-  <div style="text-align:center;">
-    <button id="prevImage" class="btn-cancel">← ก่อนหน้า</button>
-    <button id="nextImage" class="btn-cancel">ถัดไป →</button>
-  </div>
-</div>
-
-<!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-  <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="loading">
-  กำลังโหลดข้อมูล กรุณารอสักครู่...
-</div>
-
-<!-- เสียงติ๊ง -->
-<audio id="dingSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c57fa19963.mp3" preload="auto"></audio>
-
-<!-- JS -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script>
-  const modal = document.getElementById("dataModal");
-  const spanClose = document.querySelector(".close");
-  const loading = document.getElementById("loadingOverlay");
-  const dingSound = document.getElementById("dingSound");
+  const viewer = document.getElementById("viewer");
+  const largeImg = document.getElementById("largeImg");
 
-  let fileCache = [];
-  let lastFolderId = null;
-
-  function getFileCategory(type, name) {
-    if (type.includes("image") || /\.(jpg|jpeg|png|gif)$/i.test(name)) return "image";
-    if (type.includes("pdf")) return "pdf";
-    if (type.includes("document") || /\.(docx?|txt)$/i.test(name)) return "doc";
-    return "other";
-  }
-
-  document.getElementById("driveForm").addEventListener("submit", function(e) {
-    e.preventDefault();
-
-    const folderUrl = document.getElementById("driveUrl").value.trim();
-    const folderIdMatch = folderUrl.match(/[-\w]{25,}/);
+  function fetchFiles() {
+    const url = document.getElementById("folderUrl").value.trim();
+    const folderIdMatch = url.match(/[-\w]{25,}/);
     const folderId = folderIdMatch ? folderIdMatch[0] : null;
 
     if (!folderId) {
-      alert("กรุณากรอก URL โฟลเดอร์ให้ถูกต้อง");
+      alert("ลิงก์ไม่ถูกต้อง");
       return;
     }
 
-    if (folderId !== lastFolderId) {
-      fileCache = [];
-      lastFolderId = folderId;
-    }
-
-    if (fileCache.length > 0) {
-      renderTable(fileCache);
-      return;
-    }
-
-    loading.style.display = "flex";
-
-    const fullUrl = `https://script.google.com/macros/s/AKfycbyHSJTK8V8iTSwI7Dkf7GL25RnCA0VOduuZxACbNTi9olWpasiKYCwDkRHYEuylP86mvA/exec?folderId=${folderId}`;
+    // ✅ เปลี่ยน URL นี้ให้เป็นของคุณ
+    const scriptUrl = 'https://script.google.com/macros/s/AKfycbyHSJTK8V8iTSwI7Dkf7GL25RnCA0VOduuZxACbNTi9olWpasiKYCwDkRHYEuylP86mvA/exec';
+    const fullUrl = `${scriptUrl}?folderId=${folderId}`;
 
     fetch(fullUrl)
       .then(res => res.json())
       .then(data => {
-        loading.style.display = "none";
-        dingSound.play();
-
         if (data.error) {
           alert(data.error);
           return;
         }
 
-        fileCache = data.map(file => ({
-          ...file,
-          category: getFileCategory(file.type, file.name)
-        }));
+        const gallery = document.getElementById("gallery");
+        gallery.innerHTML = '';
 
-        renderTable(fileCache);
+        const images = data.filter(file => file.thumbnail && file.type.includes("image"));
+
+        images.forEach(file => {
+          const img = document.createElement("img");
+          img.src = file.thumbnail;
+          img.className = "preview";
+          img.alt = file.name;
+          img.onclick = () => {
+            largeImg.src = file.thumbnail;
+            viewer.style.display = "flex";
+          };
+          gallery.appendChild(img);
+        });
+
+        if (images.length === 0) {
+          gallery.innerHTML = "<p>ไม่พบรูปภาพในโฟลเดอร์นี้</p>";
+        }
       })
       .catch(err => {
-        loading.style.display = "none";
-        alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
         console.error(err);
+        alert("เกิดข้อผิดพลาดในการโหลด");
       });
-  });
-
-  function renderTable(data) {
-    $('#fileTable').DataTable().clear().destroy();
-    const tbody = document.querySelector("#fileTable tbody");
-    tbody.innerHTML = "";
-
-    const filterValue = document.getElementById("filterType").value;
-
-    data
-      .filter(file => filterValue === "all" || file.category === filterValue)
-      .forEach(file => {
-        const isImage = file.category === "image";
-        const preview = isImage
-          ? `<img class="preview" src="${file.url.replace('/view', '/preview')}" onclick="openImageViewer('${file.url}')" />`
-          : "-";
-        const row = `
-          <tr>
-            <td>${file.name}</td>
-            <td>${file.category}</td>
-            <td>${preview}</td>
-            <td><a href="${file.url}" target="_blank">เปิดไฟล์</a></td>
-          </tr>`;
-        tbody.insertAdjacentHTML("beforeend", row);
-      });
-
-    $('#fileTable').DataTable();
-    modal.style.display = "block";
-  }
-
-  document.getElementById("filterType").addEventListener("change", () => {
-    renderTable(fileCache);
-  });
-
-  spanClose.onclick = () => modal.style.display = "none";
-  window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
-
-  document.getElementById("exportBtn").addEventListener("click", () => {
-    const csv = ["ชื่อไฟล์,ประเภท,ลิงก์"];
-    fileCache.forEach(file => {
-      csv.push(`"${file.name}","${file.category}","${file.url}"`);
-    });
-
-    const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "รายการไฟล์จาก Google Drive.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  });
-
-  // Viewer Modal
-  const viewerModal = document.getElementById("imageViewer");
-  const largeImage = document.getElementById("largeImage");
-  const closeViewer = document.getElementById("closeViewer");
-  const prevBtn = document.getElementById("prevImage");
-  const nextBtn = document.getElementById("nextImage");
-
-  let imageList = [];
-  let currentImageIndex = 0;
-
-  function openImageViewer(imageUrl) {
-    imageList = fileCache.filter(file => file.category === "image");
-    currentImageIndex = imageList.findIndex(f => f.url === imageUrl);
-    if (currentImageIndex === -1) return;
-    showLargeImage();
-    viewerModal.style.display = "block";
-  }
-
-  function showLargeImage() {
-    const file = imageList[currentImageIndex];
-    largeImage.src = file.url.replace("/view", "/preview");
-  }
-
-  prevBtn.onclick = () => {
-    if (currentImageIndex > 0) {
-      currentImageIndex--;
-      showLargeImage();
-    }
-  };
-
-  nextBtn.onclick = () => {
-    if (currentImageIndex < imageList.length - 1) {
-      currentImageIndex++;
-      showLargeImage();
-    }
-  };
-
-  closeViewer.onclick = () => viewerModal.style.display = "none";
-  window.onclick = e => { if (e.target === viewerModal) viewerModal.style.display = "none"; };
-
-  document.addEventListener("keydown", (e) => {
-    if (viewerModal.style.display !== "block") return;
-    if (e.key === "ArrowLeft") prevBtn.click();
-    if (e.key === "ArrowRight") nextBtn.click();
-  });
-
-  let touchStartX = 0;
-  let touchEndX = 0;
-
-  largeImage.addEventListener("touchstart", (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-  });
-
-  largeImage.addEventListener("touchend", (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  });
-
-  function handleSwipe() {
-    const diff = touchStartX - touchEndX;
-    if (diff > 50) nextBtn.click();
-    else if (diff < -50) prevBtn.click();
   }
 </script>
+
 </body>
 </html>

@@ -2,148 +2,297 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>แกลเลอรี่ Google Drive</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ระบบดึงไฟล์จาก Google Drive</title>
+
   <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/css/lightgallery-bundle.min.css" />
+
   <style>
-    body { font-family: 'Sarabun', sans-serif; background: #e8ecf2; text-align: center; padding: 40px; }
-    .container { background: #fff; padding: 25px; border-radius: 15px; max-width: 800px; margin: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-    input[type="text"] { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 2px solid #ccc; font-size: 16px; }
-    button { padding: 10px 20px; margin: 10px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; }
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: #e8ecf2;
+      text-align: center;
+      padding: 50px;
+    }
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #d84433;
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    input[type="text"], select {
+      width: 90%;
+      padding: 12px;
+      margin: 15px 0;
+      border: 2px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 18px;
+      margin: 5px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
     .btn-submit { background-color: #d84433; color: white; }
-    .preview-img { width: 100px; border-radius: 8px; }
-    .footer { margin-top: 30px; font-size: 14px; color: #555; }
-    #categoryGallery h4 { margin-top: 30px; }
+    .btn-cancel { background-color: #5a6760; color: white; }
+    .btn-export { background-color: #2b84d8; color: white; }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #555;
+    }
+    .emoji { width: 100px; margin-bottom: 10px; }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fff;
+      margin: 5% auto;
+      padding: 20px;
+      border-radius: 12px;
+      width: 95%;
+      max-width: 1000px;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Loading */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: linear-gradient(-45deg, #ffdee9, #b5fffc, #c3ffd2, #ffe2a9);
+      background-size: 400% 400%;
+      animation: gradientBG 5s ease infinite;
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      font-size: 18px;
+      color: #444;
+    }
+    .loading-overlay img {
+      width: 100px;
+      animation: spin 2s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    td img.preview {
+      width: 60px;
+      height: auto;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>แสดงไฟล์จาก Google Drive</h2>
-    <form id="driveForm">
-      <input type="text" id="driveUrl" placeholder="วางลิงก์โฟลเดอร์ Google Drive ที่นี่">
-      <br>
-      <button type="submit" class="btn-submit">ดึงข้อมูล</button>
-    </form>
+<div class="container">
+  <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji" />
+  <div class="header">ระบบดึงไฟล์จาก Google Drive</div>
+  
+  <form id="driveForm">
+    <input type="text" id="driveUrl" placeholder="วางลิงก์โฟลเดอร์ Google Drive">
+    <button type="submit" class="btn-submit">ดึงข้อมูล</button>
+    <button type="reset" class="btn-cancel">ยกเลิก</button>
+  </form>
+</div>
+
+<!-- Modal -->
+<div id="dataModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3>รายการไฟล์</h3>
+    <select id="filterType">
+      <option value="all">ทั้งหมด</option>
+      <option value="image">รูปภาพ</option>
+      <option value="pdf">PDF</option>
+      <option value="doc">เอกสาร</option>
+    </select>
+    <button id="exportBtn" class="btn-export">Export to Excel</button>
+    <table id="fileTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th>ชื่อไฟล์</th>
+          <th>ประเภท</th>
+          <th>แสดง</th>
+          <th>ลิงก์</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
+</div>
 
-  <div class="container" id="galleryContainer" style="display:none;">
-    <h3>แกลเลอรี่รูปภาพ</h3>
-    <input type="text" id="searchGallery" placeholder="🔍 ค้นหารูปภาพ..." style="padding: 10px; width: 90%; margin: 10px auto; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;">
-    <div id="categoryGallery"></div>
-  </div>
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="loading">
+  กำลังโหลดข้อมูล กรุณารอสักครู่...
+</div>
 
-  <div class="footer">
-    พัฒนาโดย ครูนิด ศิษย์หลวงพ่อเสือ<br>
-    ครูนิดสตูดิโอ <a href="tel:0892231515">089-223-1515</a>
-  </div>
+<!-- เสียงติ๊ง -->
+<audio id="dingSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_c57fa19963.mp3" preload="auto"></audio>
 
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/lightgallery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/plugins/zoom/lg-zoom.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/plugins/thumbnail/lg-thumbnail.min.js"></script>
-  <script>
-    let fileCache = [];
-    let lastFolderId = null;
+<!-- ต่อในตอนที่ 2... -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script>
+  const modal = document.getElementById("dataModal");
+  const spanClose = document.querySelector(".close");
+  const loading = document.getElementById("loadingOverlay");
+  const dingSound = document.getElementById("dingSound");
 
-    document.getElementById("driveForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const folderUrl = document.getElementById("driveUrl").value.trim();
-      const match = folderUrl.match(/[-\w]{25,}/);
-      const folderId = match ? match[0] : null;
-      if (!folderId) return alert("กรุณาใส่ลิงก์โฟลเดอร์ให้ถูกต้อง");
+  let fileCache = [];
+  let lastFolderId = null;
 
-      if (folderId !== lastFolderId) {
-        fileCache = [];
-        lastFolderId = folderId;
-      }
+  // 🎯 แปลง MIME Type เป็นกลุ่มง่ายๆ
+  function getFileCategory(type, name) {
+    if (type.includes("image") || /\.(jpg|jpeg|png|gif)$/i.test(name)) return "image";
+    if (type.includes("pdf")) return "pdf";
+    if (type.includes("document") || /\.(docx?|txt)$/i.test(name)) return "doc";
+    return "other";
+  }
 
-      if (fileCache.length > 0) {
-        renderGallery(fileCache);
-        return;
-      }
+  // 🎯 ดึงข้อมูลจาก Apps Script
+  document.getElementById("driveForm").addEventListener("submit", function(e) {
+    e.preventDefault();
 
-      const url = `https://script.google.com/macros/s/AKfycbyHSJTK8V8iTSwI7Dkf7GL25RnCA0VOduuZxACbNTi9olWpasiKYCwDkRHYEuylP86mvA/exec?folderId=${folderId}`;
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          fileCache = data.map(file => ({
-            ...file,
-            category: getFileCategory(file.type, file.name)
-          }));
-          renderGallery(fileCache);
-        })
-        .catch(err => {
-          alert("โหลดข้อมูลไม่สำเร็จ");
-          console.error(err);
-        });
+    const folderUrl = document.getElementById("driveUrl").value.trim();
+    const folderIdMatch = folderUrl.match(/[-\w]{25,}/);
+    const folderId = folderIdMatch ? folderIdMatch[0] : null;
+
+    if (!folderId) {
+      alert("กรุณากรอก URL โฟลเดอร์ให้ถูกต้อง");
+      return;
+    }
+
+    // หากเปลี่ยน folderId ให้โหลดใหม่
+    if (folderId !== lastFolderId) {
+      fileCache = [];
+      lastFolderId = folderId;
+    }
+
+    if (fileCache.length > 0) {
+      renderTable(fileCache);
+      return;
+    }
+
+    loading.style.display = "flex";
+
+    const fullUrl = `https://script.google.com/macros/s/AKfycbyHSJTK8V8iTSwI7Dkf7GL25RnCA0VOduuZxACbNTi9olWpasiKYCwDkRHYEuylP86mvA/exec?folderId=${folderId}`;
+
+    fetch(fullUrl)
+      .then(res => res.json())
+      .then(data => {
+        loading.style.display = "none";
+        dingSound.play();
+
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        fileCache = data.map(file => ({
+          ...file,
+          category: getFileCategory(file.type, file.name)
+        }));
+
+        renderTable(fileCache);
+      })
+      .catch(err => {
+        loading.style.display = "none";
+        alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
+        console.error(err);
+      });
+  });
+
+  // 🎯 ฟังก์ชันสร้างตาราง
+  function renderTable(data) {
+    $('#fileTable').DataTable().clear().destroy();
+    const tbody = document.querySelector("#fileTable tbody");
+    tbody.innerHTML = "";
+
+    const filterValue = document.getElementById("filterType").value;
+
+    data
+      .filter(file => filterValue === "all" || file.category === filterValue)
+      .forEach(file => {
+        const isImage = file.category === "image";
+        const preview = isImage ? `<img class="preview" src="${file.url.replace('/view', '/preview')}" />` : "-";
+        const row = `
+          <tr>
+            <td>${file.name}</td>
+            <td>${file.category}</td>
+            <td>${preview}</td>
+            <td><a href="${file.url}" target="_blank">เปิดไฟล์</a></td>
+          </tr>`;
+        tbody.insertAdjacentHTML("beforeend", row);
+      });
+
+    $('#fileTable').DataTable();
+    modal.style.display = "block";
+  }
+
+  // 🎯 Filter dropdown
+  document.getElementById("filterType").addEventListener("change", () => {
+    renderTable(fileCache);
+  });
+
+  // 🎯 ปิด Modal
+  spanClose.onclick = () => modal.style.display = "none";
+  window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
+
+  // 🎯 Export to CSV
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    const csv = ["ชื่อไฟล์,ประเภท,ลิงก์"];
+    fileCache.forEach(file => {
+      csv.push(`"${file.name}","${file.category}","${file.url}"`);
     });
 
-    function getFileCategory(type, name) {
-      if (type.includes("image") || /\.(jpg|jpeg|png|gif)$/i.test(name)) return "image";
-      if (type.includes("pdf")) return "pdf";
-      if (type.includes("document") || /\.(docx?|txt)$/i.test(name)) return "doc";
-      return "other";
-    }
-
-    function renderGallery(images) {
-      const container = document.getElementById("categoryGallery");
-      container.innerHTML = "";
-
-      const categories = {
-        activity: [], pdf: [], doc: [], other: []
-      };
-
-      images.forEach(file => {
-        const cat = file.category;
-        if (cat === "image") categories.activity.push(file);
-        else if (cat === "pdf") categories.pdf.push(file);
-        else if (cat === "doc") categories.doc.push(file);
-        else categories.other.push(file);
-      });
-
-      function createGallerySection(title, list, galleryId) {
-        if (list.length === 0) return;
-
-        const section = document.createElement("div");
-        section.innerHTML = `<h4>${title}</h4><div id="${galleryId}" class="lightgallery" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>`;
-        container.appendChild(section);
-
-        const galEl = section.querySelector(`#${galleryId}`);
-        list.forEach(file => {
-          const fileId = file.url.match(/[-\w]{25,}/)?.[0] || "";
-          const thumb = file.thumbnail || `https://drive.google.com/uc?export=view&id=${fileId}`;
-          const a = document.createElement("a");
-          a.href = thumb;
-          a.setAttribute("data-lg-size", "1600-1067");
-          a.setAttribute("data-sub-html", `<h4>${file.name}</h4><a href='${file.url}' target='_blank' download class='download-btn'>\u0e14\u0e32\u0e27\u0e19\u0e4c\u0e42\u0e2b\u0e25\u0e14</a>`);
-          a.innerHTML = `<img src="${thumb}" alt="${file.name}" class="preview-img">`;
-          galEl.appendChild(a);
-        });
-
-        lightGallery(galEl, {
-          plugins: [lgZoom, lgThumbnail],
-          speed: 400,
-          download: false
-        });
-      }
-
-      createGallerySection("\ud83d\udcf8 \u0e20\u0e32\u0e1e\u0e01\u0e34\u0e08\u0e01\u0e23\u0e23\u0e21", categories.activity, "gal-activity");
-      createGallerySection("\ud83d\udcc4 PDF", categories.pdf, "gal-pdf");
-      createGallerySection("\ud83d\udcdc \u0e40\u0e2d\u0e01\u0e2a\u0e32\u0e23", categories.doc, "gal-doc");
-      createGallerySection("\ud83d\udce6 \u0e2d\u0e37\u0e48\u0e19 \u0e46", categories.other, "gal-other");
-
-      document.getElementById("galleryContainer").style.display = "block";
-
-      document.getElementById("searchGallery").addEventListener("input", function () {
-        const keyword = this.value.toLowerCase();
-        document.querySelectorAll("#categoryGallery a").forEach(el => {
-          const match = el.getAttribute("data-sub-html")?.toLowerCase().includes(keyword);
-          el.style.display = match ? "inline-block" : "none";
-        });
-      });
-    }
-  </script>
+    const blob = new Blob([csv.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "รายการไฟล์จาก Google Drive.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+</script>
 </body>
 </html>

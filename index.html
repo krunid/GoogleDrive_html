@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบดึงไฟล์จาก Google Drive</title>
 
-  <!-- Font & Style -->
+  <!-- ฟอนต์และ DataTables -->
   <link href="https://fonts.googleapis.com/css2?family=Sarabun&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+
   <style>
     body {
       font-family: 'Sarabun', sans-serif;
@@ -65,10 +66,8 @@
       width: 100px;
       margin-bottom: 10px;
     }
-
-    /* Modal */
     .modal {
-      display: none; 
+      display: none;
       position: fixed;
       z-index: 999;
       left: 0; top: 0;
@@ -97,7 +96,7 @@
 
   <div class="container">
     <img src="https://cdn-icons-png.flaticon.com/512/924/924915.png" class="emoji" alt="emoji">
-    <div class="header">ระบบดัชนีไฟล์ระบบจาก Google Drive</div>
+    <div class="header">ระบบดึงไฟล์จาก Google Drive</div>
     
     <form>
       <label for="driveUrl">กรุณากรอก URL ของโฟลเดอร์ Google Drive:</label><br>
@@ -106,10 +105,11 @@
       <button type="reset" class="btn-cancel">ยกเลิกข้อมูล</button>
     </form>
 
-    <div class="footer">
-      พัฒนาโดย ครูรากหญ้า<br>
-      รากหญ้าสตูดิโอ 098-408-2913
-    </div>
+<div class="footer">
+  พัฒนาโดย ครูนิด ศิษย์หลวงพ่อเสือ<br>
+  ครูนิดสตูดิโอ <a href="tel:0892231515">089-223-1515</a>
+</div>
+
   </div>
 
   <!-- Modal Popup -->
@@ -126,50 +126,64 @@
           </tr>
         </thead>
         <tbody>
-          <!-- JS จะใส่ข้อมูล -->
+          <!-- เพิ่มข้อมูลด้วย JS -->
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- Script -->
+  <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
   <script>
-    const dummyData = [
-      { name: "แบบเรียน.pdf", type: "PDF", link: "https://drive.google.com/file/d/123456/view" },
-      { name: "ภาพกิจกรรม.jpg", type: "รูปภาพ", link: "https://drive.google.com/file/d/234567/view" },
-      { name: "รายงาน.docx", type: "เอกสาร", link: "https://drive.google.com/file/d/345678/view" },
-    ];
-
     const modal = document.getElementById("dataModal");
     const spanClose = document.querySelector(".close");
 
     document.querySelector("form").addEventListener("submit", function(e) {
       e.preventDefault();
 
-      // ล้างข้อมูลเก่า
-      $('#fileTable').DataTable().clear().destroy();
-      const tbody = document.querySelector("#fileTable tbody");
-      tbody.innerHTML = "";
+      const folderUrl = document.getElementById("driveUrl").value.trim();
+      const folderIdMatch = folderUrl.match(/[-\w]{25,}/);
+      const folderId = folderIdMatch ? folderIdMatch[0] : null;
 
-      // แสดงข้อมูลใหม่
-      dummyData.forEach(file => {
-        const row = `
-          <tr>
-            <td>${file.name}</td>
-            <td>${file.type}</td>
-            <td><a href="${file.link}" target="_blank">เปิดไฟล์</a></td>
-          </tr>`;
-        tbody.insertAdjacentHTML("beforeend", row);
-      });
+      if (!folderId) {
+        alert("กรุณากรอก URL โฟลเดอร์ Google Drive ให้ถูกต้อง");
+        return;
+      }
 
-      // เปิด modal และสร้าง DataTable
-      modal.style.display = "block";
-      $('#fileTable').DataTable();
+      const scriptUrl = "https://script.google.com/macros/s/AKfycbREPLACE_THIS/exec"; // 🔁 เปลี่ยนเป็น URL ของคุณ
+
+      fetch(`${scriptUrl}?folderId=${folderId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+
+          $('#fileTable').DataTable().clear().destroy();
+          const tbody = document.querySelector("#fileTable tbody");
+          tbody.innerHTML = "";
+
+          data.forEach(file => {
+            const row = `
+              <tr>
+                <td>${file.name}</td>
+                <td>${file.type}</td>
+                <td><a href="${file.url}" target="_blank">เปิดไฟล์</a></td>
+              </tr>`;
+            tbody.insertAdjacentHTML("beforeend", row);
+          });
+
+          modal.style.display = "block";
+          $('#fileTable').DataTable();
+        })
+        .catch(err => {
+          alert("เกิดข้อผิดพลาดในการดึงข้อมูล");
+          console.error(err);
+        });
     });
 
-    // ปิด modal
     spanClose.onclick = () => modal.style.display = "none";
     window.onclick = e => { if (e.target == modal) modal.style.display = "none"; };
   </script>
